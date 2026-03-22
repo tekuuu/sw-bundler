@@ -98,7 +98,7 @@ async function main (): Promise<void> {
   const program = new Command()
     .version(erc4337RuntimeVersion)
     .option('--network <string>', 'network name or url', 'http://localhost:8545')
-    .option('--mnemonic <file>', 'mnemonic/private-key file of signer account (to fund account)')
+    // .option('--mnemonic <file>', 'mnemonic/private-key file of signer account (to fund account)')
     .option('--bundlerUrl <url>', 'bundler URL', 'http://localhost:3000/rpc')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract', ENTRY_POINT)
     .option('--nonce <number>', 'account creation nonce. default to random (deploy new account)')
@@ -133,25 +133,12 @@ async function main (): Promise<void> {
     bundler = await runBundler(argv)
     await bundler.asyncStart()
   }
-  if (opts.mnemonic != null) {
-    signer = Wallet.fromMnemonic(fs.readFileSync(opts.mnemonic, 'ascii').trim()).connect(provider)
-  } else {
-    try {
-      const accounts = await provider.listAccounts()
-      if (accounts.length === 0) {
-        console.log('fatal: no account. use --mnemonic (needed to fund account)')
-        process.exit(1)
-      }
-      // for hardhat/node, use account[0]
-      signer = provider.getSigner()
-      const network = await provider.getNetwork()
-      if (network.chainId === 1337 || network.chainId === 31337) {
-        deployFactory = true
-      }
-    } catch (e) {
-      throw new Error('must specify --mnemonic')
-    }
+  // Use BUNDLER_PRIVATE_KEY from .env for signer
+  const privateKey = process.env.BUNDLER_PRIVATE_KEY
+  if (!privateKey || privateKey.trim() === '') {
+    throw new Error('BUNDLER_PRIVATE_KEY must be set in .env file or environment for the runner to operate.')
   }
+  signer = new Wallet(privateKey.trim(), provider)
   const accountOwner = new Wallet('0x'.padEnd(66, '7'))
 
   const index = opts.nonce ?? Date.now()

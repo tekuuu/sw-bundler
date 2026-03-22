@@ -4,8 +4,7 @@ import { Command } from 'commander'
 import {
   deployEntryPoint,
   erc4337RuntimeVersion,
-  IEntryPoint,
-  RpcError,
+  IEntryPoint,  IEntryPoint__factory,  RpcError,
   supportsRpcMethod
 } from '@account-abstraction/utils'
 import { ethers, Wallet, Signer } from 'ethers'
@@ -42,7 +41,14 @@ export let showStackTraces = false
 
 export async function connectContracts (
   wallet: Signer,
-  deployNewEntryPoint: boolean = true): Promise<{ entryPoint?: IEntryPoint }> {
+  deployNewEntryPoint: boolean = true,
+  entryPointAddress?: string
+): Promise<{ entryPoint?: IEntryPoint }> {
+  if (entryPointAddress != null && entryPointAddress !== '') {
+    console.log('Using configured EntryPoint', entryPointAddress)
+    const entryPoint = IEntryPoint__factory.connect(entryPointAddress, wallet.provider as any)
+    return { entryPoint }
+  }
   if (!deployNewEntryPoint) {
     return { entryPoint: undefined }
   }
@@ -79,7 +85,6 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     .option('--gasFactor <number>')
     .option('--minBalance <number>', 'below this signer balance, keep fee for itself, ignoring "beneficiary" address ')
     .option('--network <string>', 'network name or url')
-    .option('--mnemonic <file>', 'mnemonic/private-key file of signer account')
     .option('--entryPoint <string>', 'address of the supported EntryPoint contract')
     .option('--port <number>', `server listening port for public clients (default: ${bundlerConfigDefault.port})`)
     .option('--privateApiPort <number>', `server listening port for block builder (default: ${bundlerConfigDefault.privateApiPort})`)
@@ -100,17 +105,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
 
   console.log('command-line arguments: ', program.opts())
 
-  if (programOpts.createMnemonic != null) {
-    const mnemonicFile: string = programOpts.createMnemonic
-    console.log('Creating mnemonic in file', mnemonicFile)
-    if (fs.existsSync(mnemonicFile)) {
-      throw new Error(`Can't --createMnemonic: out file ${mnemonicFile} already exists`)
-    }
-    const newMnemonic = Wallet.createRandom().mnemonic.phrase
-    fs.writeFileSync(mnemonicFile, newMnemonic)
-    console.log('created mnemonic file', mnemonicFile)
-    process.exit(1)
-  }
+  // mnemonic creation logic removed; use BUNDLER_PRIVATE_KEY in .env
   const { config, provider, wallet } = await resolveConfiguration(programOpts)
 
   const {
@@ -174,13 +169,18 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     }
   }
 
+  const useCustomEntryPoint = config.entryPoint != null && config.entryPoint !== ''
+  const shouldDeployEntryPoint = !config.rip7560 && !useCustomEntryPoint
+
   const {
     entryPoint
-  } = await connectContracts(wallet, !config.rip7560)
+  } = await connectContracts(wallet, shouldDeployEntryPoint, useCustomEntryPoint ? config.entryPoint : undefined)
 
-  if (entryPoint != null && entryPoint?.address?.toLowerCase() !== config.entryPoint.toLowerCase() && [1337, 31337].includes(chainId)) {
-    console.warn('NOTICE: overriding config entrypoint: ', { entryPoint: entryPoint.address })
-    config.entryPoint = entryPoint.address
+  if (entryPoint != null) {
+    if (!useCustomEntryPoint || entryPoint.address.toLowerCase() !== config.entryPoint.toLowerCase()) {
+      console.warn('NOTICE: using EntryPoint', entryPoint.address, 'and updating config.entryPoint accordingly')
+      config.entryPoint = entryPoint.address
+    }
     config.senderCreator = await entryPoint.senderCreator()
   }
 

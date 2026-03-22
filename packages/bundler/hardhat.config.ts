@@ -2,30 +2,22 @@ import '@nomiclabs/hardhat-ethers'
 import '@nomicfoundation/hardhat-toolbox'
 import 'hardhat-deploy'
 
-import fs from 'fs'
 
 import { HardhatUserConfig } from 'hardhat/config'
 import { NetworkUserConfig } from 'hardhat/src/types/config'
 
-const mnemonicFileName = process.env.MNEMONIC_FILE
-let mnemonic = 'test '.repeat(11) + 'junk'
-if (mnemonicFileName != null && fs.existsSync(mnemonicFileName)) {
-  mnemonic = fs.readFileSync(mnemonicFileName, 'ascii').trim()
-}
-
-const infuraUrl = (name: string): string => `https://${name}.infura.io/v3/${process.env.INFURA_ID}`
+const privateKey = process.env.BUNDLER_PRIVATE_KEY
+const networkUrl = process.env.NETWORK_URL
 
 function getNetwork (url: string): NetworkUserConfig {
+  // Only use NETWORK_URL from .env
+  if (networkUrl && networkUrl.trim() !== '') {
+    url = networkUrl.trim()
+  }
   return {
     url,
-    accounts: {
-      mnemonic
-    }
+    accounts: privateKey ? [privateKey] : undefined
   }
-}
-
-function getInfuraNetwork (name: string): NetworkUserConfig {
-  return getNetwork(infuraUrl(name))
 }
 
 const config: HardhatUserConfig = {
@@ -38,7 +30,7 @@ const config: HardhatUserConfig = {
       url: 'http://localhost:8545/',
       saveDeployments: false
     },
-    sepolia: getInfuraNetwork('sepolia')
+    sepolia: getNetwork('sepolia')
   },
   solidity: {
     version: '0.8.28',

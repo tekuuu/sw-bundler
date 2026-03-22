@@ -12,7 +12,6 @@ export interface BundlerConfig {
   senderCreator: string
   gasFactor: string
   minBalance: string
-  mnemonic: string
   network: string
   port: string
   privateApiPort: string
@@ -52,7 +51,6 @@ export const BundlerConfigShape = {
   senderCreator: ow.string,
   gasFactor: ow.string,
   minBalance: ow.string,
-  mnemonic: ow.string,
   network: ow.string,
   port: ow.string,
   privateApiPort: ow.string,

@@ -4,6 +4,8 @@ import fs from 'fs'
 import { BundlerConfig, bundlerConfigDefault, BundlerConfigShape } from './BundlerConfig'
 import { Wallet, Signer } from 'ethers'
 import { JsonRpcProvider } from '@ethersproject/providers'
+import dotenv from 'dotenv'
+dotenv.config()
 
 function getCommandLineParams (programOpts: any): Partial<BundlerConfig> {
   const params: any = {}
@@ -22,12 +24,11 @@ function mergeConfigs (...sources: Array<Partial<BundlerConfig>>): BundlerConfig
   return mergedConfig
 }
 
-const DEFAULT_INFURA_ID = 'd442d82a1ab34327a7126a578428dfc4'
-
 export function getNetworkProvider (url: string): JsonRpcProvider {
-  if (url.match(/^[\w-]+$/) != null) {
-    const infuraId = process.env.INFURA_ID1 ?? DEFAULT_INFURA_ID
-    url = `https://${url}.infura.io/v3/${infuraId}`
+  // Only use NETWORK_URL from .env
+  const envNetworkUrl = process.env.NETWORK_URL
+  if (envNetworkUrl && envNetworkUrl.trim() !== '') {
+    url = envNetworkUrl.trim()
   }
   console.log('url=', url)
   return new JsonRpcProvider(url)
@@ -50,13 +51,15 @@ export async function resolveConfiguration (programOpts: any): Promise<{ config:
   }
 
   const provider = getNetworkProvider(config.network)
-  let mnemonic: string
+  const privateKey = process.env.BUNDLER_PRIVATE_KEY
+  if (!privateKey || privateKey.trim() === '') {
+    throw new Error('BUNDLER_PRIVATE_KEY must be set in .env file or environment for the bundler to operate.')
+  }
   let wallet: Wallet
   try {
-    mnemonic = fs.readFileSync(config.mnemonic, 'ascii').trim()
-    wallet = Wallet.fromMnemonic(mnemonic).connect(provider)
+    wallet = new Wallet(privateKey.trim(), provider)
   } catch (e: any) {
-    throw new Error(`Unable to read --mnemonic ${config.mnemonic}: ${e.message as string}`)
+    throw new Error(`Unable to load wallet from BUNDLER_PRIVATE_KEY: ${e.message as string}`)
   }
   return { config, provider, wallet }
 }

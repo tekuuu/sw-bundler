@@ -1,15 +1,26 @@
+Create a `.env` file in the project root with:
+
+```
+BUNDLER_PRIVATE_KEY=your_private_key_here
+NETWORK_URL=https://sepolia.infura.io/v3/your_infura_project_id
+```
+
+- `BUNDLER_PRIVATE_KEY` is required for the bundler to sign transactions.
+- `NETWORK_URL` is required and sets the Ethereum RPC endpoint (e.g., Sepolia via Infura or Alchemy).
+
+Never commit your .env file to version control.
+
+To run the full test bundler spec test suite, visit https://github.com/eth-infinitism/bundler-spec-tests
 # EIP4337 reference modules
+```
+BUNDLER_PRIVATE_KEY=your_private_key_here
+NETWORK_URL=https://sepolia.infura.io/v3/your_infura_project_id
+```
 
-## Bundler
+- `BUNDLER_PRIVATE_KEY` is required for the bundler to sign transactions.
+- `NETWORK_URL` is required and sets the Ethereum RPC endpoint (e.g., Sepolia via Infura or Alchemy).
 
-A basic eip4337 "bundler"
-
-This is a reference implementation for a bundler, implementing the full EIP-4337
-RPC calls (both production and debug calls), required to pass the [bundler-spec-tests](https://github.com/eth-infinitism/bundler-spec-tests) test suite.
-
-### Running local node
-In order to implement the full spec storage access rules and opcode banning, it must run
-against a GETH node, which supports debug_traceCall with javascript "tracer"
+Never commit your .env file to version control.
 Specifically, `hardhat node` and `ganache` do NOT support this API.
 You can still run the bundler with such nodes, but with `--unsafe` so it would skip these security checks
 
@@ -42,12 +53,25 @@ To run a simple test, do `yarn run runop --deployFactory --network http://localh
    - determines the wallet address, and funds it
    - sends a transaction (which also creates the wallet)
    - sends another transaction, on this existing wallet
-   - (uses account[0] or mnemonic file for funding, and creating deployer if needed)
+
+  - (uses account[0] or the private key from .env for funding, and creating deployer if needed)
 
 
-NOTE: if running on a testnet, you need to supply the bundler (and runop) the network and mnemonic file, e.g.
+NOTE: if running on a testnet, you need to supply the bundler (and runop) the network and set the private key in a `.env` file:
 
-`yarn run bundler --network localhost --mnemonic file.txt` 
++Create a `.env` file in the project root with:
++
++```
++BUNDLER_PRIVATE_KEY=your_private_key_here
++NETWORK_URL=https://sepolia.infura.io/v3/your_infura_project_id
++INFURA_ID=your_infura_project_id
++```
++
++- `BUNDLER_PRIVATE_KEY` is required for the bundler to sign transactions.
++- `NETWORK_URL` (recommended) sets the Ethereum RPC endpoint (e.g., Sepolia via Infura or Alchemy).
++- `INFURA_ID` is used if you specify a network name (like `sepolia`) instead of a full URL.
++
++Never commit your .env file to version control.
 
 To run the full test bundler spec test suite, visit https://github.com/eth-infinitism/bundler-spec-tests
 
