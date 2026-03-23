@@ -181,7 +181,20 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
       console.warn('NOTICE: using EntryPoint', entryPoint.address, 'and updating config.entryPoint accordingly')
       config.entryPoint = entryPoint.address
     }
-    config.senderCreator = await entryPoint.senderCreator()
+
+    const entryPointCode = await provider.getCode(entryPoint.address)
+    if (entryPointCode === '0x') {
+      throw new Error(`Configured EntryPoint ${entryPoint.address} has no contract code on chainId ${chainId}. Check NETWORK_URL and entryPoint settings.`)
+    }
+
+    try {
+      config.senderCreator = await entryPoint.senderCreator()
+    } catch (e: any) {
+      if (config.senderCreator == null || config.senderCreator === '') {
+        throw new Error(`EntryPoint ${entryPoint.address} does not expose senderCreator(), and no senderCreator is configured. Original error: ${e.message as string}`)
+      }
+      console.warn(`NOTICE: EntryPoint ${entryPoint.address} does not expose senderCreator(). Using configured senderCreator ${config.senderCreator}`)
+    }
   }
 
   // bundleSize=1 replicate current immediate bundling mode
