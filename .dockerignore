@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+.git
+.gitignore
+.github
+.npmrc
+.env
+.env.*
+coverage
+**/coverage
+dist
+**/dist
+artifacts
+**/artifacts
+cache
+**/cache
