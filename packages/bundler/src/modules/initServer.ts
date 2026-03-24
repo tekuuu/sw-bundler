@@ -24,8 +24,43 @@ import { BundleManagerRIP7560 } from './BundleManagerRIP7560'
 import { IBundleManager } from './IBundleManager'
 import { DepositManager } from './DepositManager'
 import { IRip7560StakeManager__factory } from '@account-abstraction/utils/dist/src/types'
-import { PreVerificationGasCalculator, ChainConfigs } from '@account-abstraction/sdk'
+import { PreVerificationGasCalculator, ChainConfigs, MainnetConfig } from '@account-abstraction/sdk'
 import { ERC7562Parser } from '@account-abstraction/validation-manager/dist/src/ERC7562Parser'
+
+function assertCompletePvgcConfig (cfg: any): void {
+  const requiredFields = [
+    'tokensPerNonzeroByte',
+    'standardTokenGasCost',
+    'floorPerTokenGasCost',
+    'transactionGasStipend',
+    'fixedGasOverhead',
+    'perUserOpGasOverhead',
+    'executeUserOpGasOverhead',
+    'perUserOpWordGasOverhead',
+    'executeUserOpPerWordGasOverhead'
+  ]
+
+  for (const field of requiredFields) {
+    const value = cfg[field]
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new Error(`Invalid preVerificationGas calculator config: ${field} must be a finite number, got ${String(value)}`)
+    }
+  }
+}
+
+function normalizeLegacyPvgcFields (cfg: any): any {
+  const normalized = { ...cfg }
+
+  if (normalized.standardTokenGasCost == null && typeof normalized.zeroByteGasCost === 'number') {
+    normalized.standardTokenGasCost = normalized.zeroByteGasCost
+  }
+
+  if (normalized.tokensPerNonzeroByte == null && typeof normalized.nonZeroByteGasCost === 'number' && typeof normalized.standardTokenGasCost === 'number' && normalized.standardTokenGasCost > 0) {
+    normalized.tokensPerNonzeroByte = normalized.nonZeroByteGasCost / normalized.standardTokenGasCost
+  }
+
+  return normalized
+}
 
 /**
  * initialize server modules.
@@ -38,7 +73,8 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   const reputationManager = new ReputationManager(getNetworkProvider(config.network), BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
   const mempoolManager = new MempoolManager(reputationManager)
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
-  const mergedPvgcConfig = Object.assign({}, ChainConfigs[config.chainId] ?? {}, config)
+  const mergedPvgcConfig = normalizeLegacyPvgcFields(Object.assign({}, MainnetConfig, ChainConfigs[config.chainId] ?? {}, config))
+  assertCompletePvgcConfig(mergedPvgcConfig)
   const preVerificationGasCalculator = new PreVerificationGasCalculator(mergedPvgcConfig)
   let validationManager: IValidationManager
   let bundleManager: IBundleManager
