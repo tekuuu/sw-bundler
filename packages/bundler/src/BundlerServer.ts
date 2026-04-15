@@ -10,12 +10,10 @@ import {
   AddressZero,
   IEntryPoint__factory,
   RpcError,
-  UserOperation,
   ValidationErrors,
   decodeRevertReason,
   deepHexlify,
   erc4337RuntimeVersion,
-  packUserOp
 } from '@account-abstraction/utils'
 
 import { BundlerConfig } from './BundlerConfig'
@@ -85,9 +83,10 @@ export class BundlerServer {
       this.fatal(`entrypoint not deployed at ${this.config.entryPoint}`)
     }
 
-    // minimal UserOp to revert with "FailedOp"
-    const emptyUserOp: UserOperation = {
+    // minimal EntryPoint UserOperation to verify the deployed contract ABI
+    const emptyUserOp = {
       sender: AddressZero,
+      initCode: '0x',
       callData: '0x',
       nonce: 0,
       preVerificationGas: 0,
@@ -95,11 +94,12 @@ export class BundlerServer {
       callGasLimit: 0,
       maxFeePerGas: 0,
       maxPriorityFeePerGas: 0,
+      paymasterAndData: '0x',
       signature: '0x'
     }
     // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
     try {
-      await IEntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.getUserOpHash(packUserOp(emptyUserOp))
+      await IEntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.getUserOpHash(emptyUserOp as any)
     } catch (e: any) {
       this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version? ${decodeRevertReason(e, false) as string}`)
     }

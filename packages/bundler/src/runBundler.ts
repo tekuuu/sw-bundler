@@ -3,7 +3,6 @@ import fs from 'fs'
 import { Command } from 'commander'
 import {
   deployEntryPoint,
-  getEntryPointAddress,
   erc4337RuntimeVersion,
   IEntryPoint,  IEntryPoint__factory,  RpcError,
   supportsRpcMethod
@@ -171,22 +170,11 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
   }
 
   const useCustomEntryPoint = config.entryPoint != null && config.entryPoint !== ''
-  const canonicalEntryPointAddress = getEntryPointAddress()
-  let shouldDeployEntryPoint = !config.rip7560 && !useCustomEntryPoint
-  let entryPointAddress: string | undefined = useCustomEntryPoint ? config.entryPoint : undefined
-
-  if (!config.rip7560 && useCustomEntryPoint && config.entryPoint.toLowerCase() === canonicalEntryPointAddress.toLowerCase()) {
-    const entryPointCode = await provider.getCode(config.entryPoint)
-    if (entryPointCode === '0x') {
-      console.warn(`NOTICE: canonical EntryPoint ${config.entryPoint} is not deployed on this network. Deploying it now.`)
-      shouldDeployEntryPoint = true
-      entryPointAddress = undefined
-    }
-  }
+  const shouldDeployEntryPoint = !config.rip7560 && !useCustomEntryPoint
 
   const {
     entryPoint
-  } = await connectContracts(wallet, shouldDeployEntryPoint, entryPointAddress)
+  } = await connectContracts(wallet, shouldDeployEntryPoint, useCustomEntryPoint ? config.entryPoint : undefined)
 
   if (entryPoint != null) {
     if (!useCustomEntryPoint || entryPoint.address.toLowerCase() !== config.entryPoint.toLowerCase()) {
