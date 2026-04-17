@@ -20,7 +20,6 @@ RUN rm -rf submodules/account-abstraction submodules/rip7560 \
 	&& git -C submodules/rip7560 checkout "$RIP7560_REF"
 
 RUN yarn install --frozen-lockfile
-RUN cd submodules/account-abstraction && yarn && yarn --cwd contracts prepack
 RUN yarn lerna-clear
 RUN yarn hardhat-compile
 RUN yarn --cwd packages/utils tsc
