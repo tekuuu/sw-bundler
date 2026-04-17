@@ -46,4 +46,8 @@ const config: AltMempoolConfig = {
   }
 }
 
-console.log(config)
+// Avoid noisy logs during library import; enable only when explicitly requested.
+if (process.env.DEBUG_ALTMEMPOOL_CONFIG === '1') {
+  // eslint-disable-next-line no-console
+  console.log(config)
+}

@@ -30,7 +30,11 @@ export function getNetworkProvider (url: string): JsonRpcProvider {
   if (envNetworkUrl && envNetworkUrl.trim() !== '') {
     url = envNetworkUrl.trim()
   }
-  console.log('url=', url)
+  // Avoid leaking API keys in logs (e.g. Infura project IDs embedded in the URL path).
+  const redactedUrl = url
+    .replace(/(infura\.io\/v3\/)[^/?#]+/i, '$1***')
+    .replace(/(alchemy\.com\/v2\/)[^/?#]+/i, '$1***')
+  console.log('url=', redactedUrl)
   return new JsonRpcProvider(url)
 }
 
