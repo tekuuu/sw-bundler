@@ -8,7 +8,6 @@ import { Server } from 'http'
 
 import {
   AddressZero,
-  IEntryPoint__factory,
   RpcError,
   ValidationErrors,
   decodeRevertReason,
@@ -83,25 +82,14 @@ export class BundlerServer {
       this.fatal(`entrypoint not deployed at ${this.config.entryPoint}`)
     }
 
-    // minimal EntryPoint UserOperation to verify the deployed contract ABI
-    const emptyUserOp = {
-      sender: AddressZero,
-      initCode: '0x',
-      callData: '0x',
-      nonce: 0,
-      preVerificationGas: 0,
-      verificationGasLimit: 100000,
-      callGasLimit: 0,
-      maxFeePerGas: 0,
-      maxPriorityFeePerGas: 0,
-      paymasterAndData: '0x',
-      signature: '0x'
-    }
-    // await EntryPoint__factory.connect(this.config.entryPoint,this.provider).callStatic.addStake(0)
-    try {
-      await IEntryPoint__factory.connect(this.config.entryPoint, this.provider).callStatic.getUserOpHash(emptyUserOp as any)
-    } catch (e: any) {
-      this.fatal(`Invalid entryPoint contract at ${this.config.entryPoint}. wrong version? ${decodeRevertReason(e, false) as string}`)
+    const entryPointAbiOk = await this._supportsGetUserOpHash()
+    if (!entryPointAbiOk) {
+      const msg = `Invalid entryPoint contract at ${this.config.entryPoint}. wrong version?`
+      if (this.config.unsafe) {
+        this.log(`WARNING: ${msg} continuing in --unsafe mode`)
+      } else {
+        this.fatal(msg)
+      }
     }
 
     const signerAddress = await this.wallet.getAddress()
@@ -112,6 +100,66 @@ export class BundlerServer {
     } else if (bal.lt(parseEther(this.config.minBalance))) {
       this.log('WARNING: initial balance below --minBalance ', this.config.minBalance)
     }
+  }
+
+  private async _supportsGetUserOpHash (): Promise<boolean> {
+    const legacyIface = new utils.Interface([
+      'function getUserOpHash((address sender,uint256 nonce,bytes initCode,bytes callData,uint256 callGasLimit,uint256 verificationGasLimit,uint256 preVerificationGas,uint256 maxFeePerGas,uint256 maxPriorityFeePerGas,bytes paymasterAndData,bytes signature) userOp) view returns (bytes32)'
+    ])
+    const legacyUserOp = {
+      sender: AddressZero,
+      nonce: 0,
+      initCode: '0x',
+      callData: '0x',
+      callGasLimit: 0,
+      verificationGasLimit: 100000,
+      preVerificationGas: 0,
+      maxFeePerGas: 0,
+      maxPriorityFeePerGas: 0,
+      paymasterAndData: '0x',
+      signature: '0x'
+    }
+
+    const packedIface = new utils.Interface([
+      'function getUserOpHash((address sender,uint256 nonce,bytes initCode,bytes callData,bytes32 accountGasLimits,uint256 preVerificationGas,bytes32 gasFees,bytes paymasterAndData) userOp) view returns (bytes32)'
+    ])
+    const packedUserOp = {
+      sender: AddressZero,
+      nonce: 0,
+      initCode: '0x',
+      callData: '0x',
+      accountGasLimits: utils.hexZeroPad('0x0', 32),
+      preVerificationGas: 0,
+      gasFees: utils.hexZeroPad('0x0', 32),
+      paymasterAndData: '0x'
+    }
+
+    const candidates = [
+      {
+        iface: legacyIface,
+        userOp: legacyUserOp
+      },
+      {
+        iface: packedIface,
+        userOp: packedUserOp
+      }
+    ]
+
+    for (const candidate of candidates) {
+      try {
+        const data = candidate.iface.encodeFunctionData('getUserOpHash', [candidate.userOp])
+        const ret = await this.provider.call({
+          to: this.config.entryPoint,
+          data
+        })
+        candidate.iface.decodeFunctionResult('getUserOpHash', ret)
+        return true
+      } catch (e: any) {
+        const reason = decodeRevertReason(e, false)
+        this.log(`getUserOpHash preflight variant failed: ${reason as string}`)
+      }
+    }
+    return false
   }
 
   fatal (msg: string): never {
